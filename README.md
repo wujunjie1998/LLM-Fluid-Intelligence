@@ -1,6 +1,6 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2502.07190-b31b1b.svg?style=plastic)](https://arxiv.org/abs/2502.07190) [![Web](https://img.shields.io/badge/Web-ARAOC-blue.svg?style=plastic)](https://wujunjie1998.github.io/araoc-benchmark.github.io/)
 
-This repository contains the code and data of the paper:
+This repository contains the code and data of the NAACL 2025 main conference paper:
 
 > Understanding LLMs’ Fluid Intelligence Deficiency: An Analysis of the ARC Task
 > 
