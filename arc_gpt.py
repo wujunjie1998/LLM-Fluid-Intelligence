@@ -154,6 +154,9 @@ for sub_file in tqdm(sub_files):
 
         original_results[sub_file] = response.choices[0].message.content
 
-
-    with open('results/gpt_arc.json', 'w') as file:
-        json.dump(original_results, file)
+    if args.language:
+        with open('results/gpt_arc_language.json', 'w') as file:
+            json.dump(original_results, file)
+    else:
+        with open('results/gpt_arc.json', 'w') as file:
+            json.dump(original_results, file)

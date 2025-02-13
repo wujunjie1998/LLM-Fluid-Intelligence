@@ -29,6 +29,7 @@ parser = argparse.ArgumentParser(description="Example script to demonstrate comm
 # Add arguments
 parser.add_argument("--task_type", type=str, required=True, help="The task type (e.g., 'move')")
 parser.add_argument("--language", action='store_true', required=False, help="Use natural language input")
+parser.add_argument("--matrix", action='store_true', required=False, help="Ask questions about input matrix properties")
 
 args = parser.parse_args()
 
@@ -124,6 +125,18 @@ def io_only_prompt_natural_language(task):
         input_grid) + "\n\nWhat is the output grid? Please answer in the following format without outputting analysis:\nOutput grid:"
     return prompt
 
+def matrix_prompt(task):
+    instruction = """
+Given a matrix in the format of numpy array, please answer the following questions:\n1. What is the size of this matrix?  Output in the format of (a,b).\n2. What is the location of the non-zero subgrids. Please first find out all the corner elements of the subgrids, then output their locations in the order of [top-left, top-right, bottom-left, bottom-right], in the format of (which row, which col).\n3. What is the transpose of this matrix? Output the transposed matrix in the format of a numpy array with elements separated by commas and enclosed in square brackets for each row like "[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]".\n\nPlease only output your answer without analysis in the following format:\n1.Size: \n2.Location: \n3.Transpose:\n\nInput Matrix: 
+"""
+
+
+    input_grid = task['test'][0]['input']
+
+    prompt = instruction + str(
+        input_grid)
+    return prompt
+
 if not os.path.exists('results'):
     os.makedirs('results')
 
@@ -137,7 +150,10 @@ for index, question in tqdm(enumerate(question_train[:100])):
     if args.language:
         input_prompt = io_only_prompt_natural_language(question)
     else:
-        input_prompt = io_only_prompt(question)
+        if args.matrix:
+            input_prompt = matrix_prompt(question)
+        else:
+            input_prompt = io_only_prompt(question)
     pdb.set_trace()
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
@@ -149,8 +165,14 @@ for index, question in tqdm(enumerate(question_train[:100])):
         temperature=0.8,
     )
 
-    original_results[sub_file] = response.choices[0].message.content
+    original_results[str(index)] = response.choices[0].message.content
 
-
-    with open('results/gpt_arc.json', 'w') as file:
-        json.dump(original_results, file)
+    if args.language:
+        with open('results/gpt_' + task_type + '_language.json', 'w') as file:
+            json.dump(original_results, file)
+    elif args.matrix:
+        with open('results/gpt_' + task_type + '_matrix.json', 'w') as file:
+            json.dump(original_results, file)
+    else:
+        with open('results/gpt_'+task_type+'.json', 'w') as file:
+            json.dump(original_results, file)
