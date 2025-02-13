@@ -27,9 +27,12 @@ parser = argparse.ArgumentParser(description="Example script to demonstrate comm
 
 
 # Add arguments
+parser.add_argument("--task_type", type=str, required=True, help="The task type (e.g., 'move')")
 parser.add_argument("--language", action='store_true', required=False, help="Use natural language input")
 
 args = parser.parse_args()
+
+task_type = args.task_type
 
 
 def list_files_sorted_by_size(folder_path):
@@ -125,34 +128,28 @@ if not os.path.exists('results'):
     os.makedirs('results')
 
 original_results = {}
-root = 'data/ARC/training'
-sub_files = list_files_sorted_by_size(root)
+## import test file
+with open('data/ARAOC/'+task_type+'.json', 'r') as f:
+    question_train = json.load(f)
 
-## Use 100 ARC tasks for evaluation
-with open('data/ARC/filename_100_tasks.json', 'r') as file:
-    file_names = json.load(file)
+for index, question in tqdm(enumerate(question_train[:100])):
+    input_prompt = io_only_prompt(question)
+    if args.language:
+        input_prompt = io_only_prompt_natural_language(question)
+    else:
+        input_prompt = io_only_prompt(question)
+    pdb.set_trace()
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": input_prompt}]
 
-for sub_file in tqdm(sub_files):
-    if sub_file not in file_names:
-        continue
-    with open(root + '/' + sub_file, 'r') as file:
-        question = json.load(file)
-        if args.language:
-            input_prompt = io_only_prompt_natural_language(question)
-        else:
-            input_prompt = io_only_prompt(question)
-        pdb.set_trace()
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": input_prompt}]
+    response = chatgpt_client.chat.completions.create(
+        model='gpt model version',
+        messages=messages,
+        temperature=0.8,
+    )
 
-        response = chatgpt_client.chat.completions.create(
-            model='gpt model version',
-            messages=messages,
-            temperature=0.8,
-        )
-
-        original_results[sub_file] = response.choices[0].message.content
+    original_results[sub_file] = response.choices[0].message.content
 
 
     with open('results/gpt_arc.json', 'w') as file:
