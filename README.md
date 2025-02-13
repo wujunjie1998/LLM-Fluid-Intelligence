@@ -1,6 +1,6 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2502.07190-b31b1b.svg?style=plastic)](https://arxiv.org/abs/2502.07190) [![Web](https://img.shields.io/badge/Web-ARAOC-blue.svg?style=plastic)](https://wujunjie1998.github.io/araoc-benchmark.github.io/)
 
-This repository contains the code and data of the NAACL 2025 main conference paper:
+This repository contains the code and data of the paper:
 
 > Understanding LLMs’ Fluid Intelligence Deficiency: An Analysis of the ARC Task
 > 
@@ -57,18 +57,19 @@ python arc_gpt.py --language
 
 To run GPT models on ARAOC tasks, run 
 ```
-python arc_gpt.py --task_type
+python arc_gpt.py --task_type xxx
 ```
 where `task_type` is one of `{move, copy, change_color, mirror, fill_internal, scale}`
 To run GPT models on additional ARAOC-related experiments 
 1. set `task_type` in one of `{move/copy_up*}` to run experiments in Table 6; 
 2. set `task_type` in one of `{move_small/copy_small}` to run experiments in Table 7;
 3. set `task_type` to `move+copy` to run experiment in Table 8;
-4. set `task_type` in `{mirror_left, mirror_right}` to run experiments in Table 12.
+4. run `python arc_gpt.py --task_type move --matrix` for Table 10;
+5. set `task_type` in `{mirror_left, mirror_right}` to run experiments in Table 12.
 
-You can also use natural language input by
+You can also use natural language input to run experiments in Table 11.
 ```
-python arc_gpt.py --task_type --language
+python arc_gpt.py --task_type xxx --language
 ```
 
 ### Evaluation

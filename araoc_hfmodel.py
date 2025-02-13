@@ -1,17 +1,27 @@
-from openai import OpenAI
-import openai
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+
 import torch
 import pdb
 import numpy as np
-import json
 import random
 import os
+import json
 from tqdm import tqdm
 import argparse
 
-## Import OpenAI Key
-openai.organization = "your openai organization"
-chatgpt_client = OpenAI(api_key='your openai key')
+model = "path to your llama/mistral model"
+
+# Load tokenizer and model with QLoRA configuration
+
+hf_model = AutoModelForCausalLM.from_pretrained(
+            model,
+            torch_dtype=torch.float16,
+            trust_remote_code=True,
+).eval()
+
+tokenizer = AutoTokenizer.from_pretrained(model)
+tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right"
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -122,6 +132,8 @@ if not os.path.exists('results'):
     os.makedirs('results')
 
 original_results = {}
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 ## import test file
 with open('data/ARAOC/'+task_type+'.json', 'r') as f:
     question_train = json.load(f)
@@ -135,25 +147,34 @@ for index, question in tqdm(enumerate(question_train[:100])):
             input_prompt = matrix_prompt(question)
         else:
             input_prompt = io_only_prompt(question)
-    pdb.set_trace()
+
     messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": input_prompt}]
+        {"role": "user", "content": input_prompt},
+    ]
+    inputs = tokenizer.apply_chat_template(messages, return_tensors="pt").to(device)
+    terminators = [
+        tokenizer.eos_token_id,
+        tokenizer.convert_tokens_to_ids("<|eot_id|>")
+    ]
 
-    response = chatgpt_client.chat.completions.create(
-        model='gpt model version',
-        messages=messages,
-        temperature=0.8,
-    )
+    original_sequence = hf_model.generate(inputs, do_sample=True,
+                                       top_k=tokenizer.vocab_size,
+                                       num_return_sequences=1, eos_token_id=terminators,
+                                       max_length=inputs[0].shape[0] + 3000,
+                                       return_dict_in_generate=True, output_scores=True,
+                                       temperature=0.6,
+                                       top_p=0.9
+                                       )
 
-    original_results[str(index)] = response.choices[0].message.content
+    hf_model_str = tokenizer.decode(original_sequence.sequences[0][inputs[0].shape[0]:])
+    original_results[str(index)] = hf_model_str
 
     if args.language:
-        with open('results/gpt_' + task_type + '_language.json', 'w') as file:
+        with open('results/hf_model_' + task_type + '_language.json', 'w') as file:
             json.dump(original_results, file)
     elif args.matrix:
-        with open('results/gpt_' + task_type + '_matrix.json', 'w') as file:
+        with open('results/hf_model_' + task_type + '_matrix.json', 'w') as file:
             json.dump(original_results, file)
     else:
-        with open('results/gpt_'+task_type+'.json', 'w') as file:
+        with open('results/hf_model_'+task_type+'.json', 'w') as file:
             json.dump(original_results, file)
