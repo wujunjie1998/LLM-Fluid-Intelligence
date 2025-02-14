@@ -77,5 +77,5 @@ We run open-source LLMs using Hugging Face's Transformers. For all experiments, 
 
 
 ### Evaluation
-After generating results with the previous files, you can use the evaluation scripts in `gpt/hf_model_evaluation.py` to assess the model outputs.
+After generating results with the previous files, you can use the evaluation scripts in `gpt/hf_model_evaluation.py` to evaluate the model outputs.
 
