@@ -129,6 +129,5 @@ for sub_file in tqdm(sub_files):
         hf_model_str = tokenizer.decode(original_sequence.sequences[0][inputs[0].shape[0]:])
         original_results[sub_file] = hf_model_str
 
-
     with open('results/hf_model_arc.json', 'w') as file:
         json.dump(original_results, file)

@@ -3,6 +3,7 @@ import os
 import json
 import re
 import ast
+import numpy as np
 
 def list_files_sorted_by_size(folder_path):
     # Create a list of all files in the folder with their full paths
@@ -113,6 +114,21 @@ def calculate_accuracy_valid(ground_truth_str, prediction_str):
     matches = sum(1 for gt, pred in zip(ground_truth_flat, prediction_flat) if gt == pred)
     accuracy = matches / len(ground_truth_flat)
     return accuracy
+
+def find_nonzero_subgrid_corners(matrix):
+    rows, cols = matrix.shape
+    non_zero_indices = np.argwhere(matrix != 0)
+
+    if non_zero_indices.size == 0:
+        return []
+
+    top_left = (non_zero_indices[0][0], non_zero_indices[0][1])
+    bottom_right = (non_zero_indices[-1][0], non_zero_indices[-1][1])
+
+    top_right = (top_left[0], bottom_right[1])
+    bottom_left = (bottom_right[0], top_left[1])
+
+    return [top_left, top_right, bottom_left, bottom_right]
 
 ## Evaluate general input prompt's result
 
@@ -343,3 +359,54 @@ for task in task_type:
     print('\n')
     ## Not M%
     print((all_num - len(p_accuracy_valid)) / all_num)
+
+## Evaluate matrix properties results
+with open('results/gpt_move_matrix.json', 'r') as file:
+    hf_model = json.load(file)
+
+with open(
+        'data/ARAOC/move.json',
+        'r') as f:
+    question_train = json.load(f)
+
+size_correct = 0
+location_correct = 0
+transpose_correct = 0
+for index in hf_model.keys():
+    value = hf_model[index]
+    question = questions[int(index)]
+
+    matrix = np.array(question['test'][0]['input'])
+
+    size_match = re.search(r'Size:\s*(\(\d+,\s*\d+\))', value)
+    location_match = re.search(r'Location:\s*(\[\([^)]+\)(?:,\s*\([^)]+\))*\])', value)
+    transpose_match = re.search(r'Transpose:\s*(\[\[.*\]\])', value, re.DOTALL)
+
+    size = size_match.group(1) if size_match else f"Not found in index {index}"
+    location = location_match.group(1).replace("\n", "") if location_match else f"Not found in index {index}"
+    transpose = transpose_match.group(1).replace("\n", "").replace(" ",
+                                                                   "") if transpose_match else f"Not found in index {index}"
+
+    size = size.replace(',', ', ')
+    size = size.replace(',  ', ', ')
+    location = location.replace(',', ', ')
+    location = location.replace(',  ', ', ')
+    transpose = transpose.replace(',', ', ')
+
+    # Get the transpose of the matrix
+    gold_size = str((matrix.shape[0], matrix.shape[1]))
+    gold_location = str(find_nonzero_subgrid_corners(matrix))
+    gold_transpose = str(matrix.T.tolist())
+
+    if size == gold_size:
+        size_correct += 1
+
+    if location == gold_location:
+        location_correct += 1
+
+    if transpose == gold_transpose:
+        transpose_correct += 1
+
+print(size_correct/100)
+print(location_correct/100)
+print(transpose_correct/100)

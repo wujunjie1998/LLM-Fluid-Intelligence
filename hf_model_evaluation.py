@@ -3,6 +3,7 @@ import os
 import json
 import re
 import ast
+import numpy as np
 
 def list_files_sorted_by_size(folder_path):
     # Create a list of all files in the folder with their full paths
@@ -165,11 +166,27 @@ def calculate_accuracy_valid(ground_truth_str, prediction_str):
     accuracy = matches / len(ground_truth_flat)
     return accuracy
 
+
+def find_nonzero_subgrid_corners(matrix):
+    rows, cols = matrix.shape
+    non_zero_indices = np.argwhere(matrix != 0)
+
+    if non_zero_indices.size == 0:
+        return []
+
+    top_left = (non_zero_indices[0][0], non_zero_indices[0][1])
+    bottom_right = (non_zero_indices[-1][0], non_zero_indices[-1][1])
+
+    top_right = (top_left[0], bottom_right[1])
+    bottom_left = (bottom_right[0], top_left[1])
+
+    return [top_left, top_right, bottom_left, bottom_right]
+
 ## Evaluate general input prompt's result
 
 # ARC
 with open('results/hf_model_arc.json', 'r') as file:
-    gpt = json.load(file)
+    hf_model = json.load(file)
 
 questions = {}
 root = 'data/ARC/training'
@@ -184,36 +201,38 @@ correct_num = 0
 incorrect_num = 0
 p_accuracy = []
 p_accuracy_valid = []
-for index in gpt.keys():
-    all_num += 1
-    question = questions[index]
-    gpt_str = gpt[index]
-    gpt_str = gpt_str.replace('\n', '')
+for index in hf_model.keys():
+    if index not in questions.keys():
+        continue
 
-    if 'Output grid:' in gpt_str:
-        gpt_str = gpt_str.split('Output grid:')[1]
+    all_num += 1
+
+    if '</s>' in hf_model[index]:
+        hf_model_str = hf_model[index][:-4]
+    else:
+        hf_model_str = hf_model[index]
+
+    hf_model_str = hf_model_str.replace('\n', '')
 
     pattern = r"\[ ?\[(.*?)\] ?\]"
 
     try:
-        gpt_str_use = re.findall(pattern, gpt_str)[0]
+        hf_model_str_use = re.findall(pattern, hf_model_str)[0]
     except IndexError:
         p_accuracy.append(0)
-        print(index)
         incorrect_num += 1
         continue
-    gpt_str_use = '[[' + gpt_str_use + ']]'
+    hf_model_str_use = '[[' + hf_model_str_use + ']]'
 
-    test_str = str(question['test'][0]['output'])
-    p_accuracy.append(calculate_accuracy(test_str, gpt_str_use))
-    if calculate_accuracy_valid(test_str, gpt_str_use) != 'Invalid':
-        p_accuracy_valid.append(calculate_accuracy_valid(test_str, gpt_str_use))
-    if (test_str == gpt_str_use):
+    test_str = str(questions[index]['test'][0]['output'])
+    p_accuracy.append(calculate_accuracy(test_str, hf_model_str_use))
 
+    if calculate_accuracy_valid(test_str, hf_model_str_use) != 'Invalid':
+        p_accuracy_valid.append(calculate_accuracy_valid(test_str, hf_model_str_use))
+
+    if (test_str == hf_model_str_use):
         correct_num += 1
     else:
-
-        incorrect_num += 1
         new_test_str = ''
         for i, string in enumerate(test_str):
             if string == ',':
@@ -224,25 +243,27 @@ for index in gpt.keys():
             else:
                 new_test_str += string
 
-        new_gpt_str = ''
-        for i, string in enumerate(gpt_str_use):
+        new_hf_model_str = ''
+        for i, string in enumerate(hf_model_str_use):
             if string == ',':
-                if gpt_str_use[i - 1] == ']':
-                    new_gpt_str += '\n'
+                if hf_model_str_use[i - 1] == ']':
+                    new_hf_model_str += '\n'
                 else:
-                    new_gpt_str += string
+                    new_hf_model_str += string
             else:
-                new_gpt_str += string
+                new_hf_model_str += string
 
         new_input = ''
-        for i, string in enumerate(str(question['test'][0]['input'])):
+        for i, string in enumerate(str(questions[index]['test'][0]['input'])):
             if string == ',':
-                if str(question['test'][0]['input'])[i - 1] == ']':
+                if str(questions[index]['test'][0]['input'])[i - 1] == ']':
                     new_input += '\n'
                 else:
                     new_input += string
             else:
                 new_input += string
+        incorrect_num += 1
+
 ## Acc
 print(correct_num/all_num)
 ##Not M%
@@ -251,86 +272,89 @@ print((all_num-len(p_accuracy_valid))/all_num)
 #ARAOC
 task_type = ["move", "change_color", "copy", "mirror", "fill_internal", "scale"]
 for task in task_type:
-    with open('results/gpt_' + task + '.json',
+    with open('results/hf_model_' + task + '.json',
               'r') as file:
-        gpt = json.load(file)
+        hf_model = json.load(file)
 
     with open(
             'data/ARAOC/' + task + '.json',
             'r') as f:
         question_train = json.load(f)
 
-    all_num = 0
-    correct_num = 0
-    incorrect_num = 0
-    p_accuracy = []
-    p_accuracy_valid = []
-    for index in gpt.keys():
-        all_num += 1
-        # question = questions[index]
-        question = question_train[int(index)]
-        gpt_str = gpt[index]
-        gpt_str = gpt_str.replace('\n', '')
-        test_str = str(question['test'][0]['output'])
+        all_num = 0
+        correct_num = 0
+        incorrect_num = 0
+        p_accuracy = []
+        p_accuracy_valid = []
+        error_list = []
+        for i, question in enumerate(question_train[:100]):
+            index = str(i)
+            all_num += 1
+            if '</s>' in hf_model[index]:
+                hf_model_str = hf_model[index][:-4]
+            else:
+                hf_model_str = hf_model[index]
 
-        pattern = r"\[ ?\[(.*?)\] ?\]"
+            hf_model_str = hf_model_str.replace('\n', '')
 
-        try:
-            gpt_str_use = re.findall(pattern, gpt_str)[0]
-        except IndexError:
-            p_accuracy.append(0)
-            print(index)
-            incorrect_num += 1
-            continue
-        gpt_str_use = '[[' + gpt_str_use + ']]'
+            pattern = r"\[ ?\[(.*?)\] ?\]"
 
-        pattern = r"\[ ?\[(.*?)\] ?\]"
+            try:
+                hf_model_str_use = re.findall(pattern, hf_model_str)[0]
+            except IndexError:
+                p_accuracy.append(0)
+                incorrect_num += 1
+                continue
+            hf_model_str_use = '[[' + hf_model_str_use + ']]'
 
-        p_accuracy.append(calculate_accuracy(test_str, gpt_str_use))
-        if calculate_accuracy_valid(test_str, gpt_str_use) != 'Invalid':
-            p_accuracy_valid.append(calculate_accuracy_valid(test_str, gpt_str_use))
-        if (test_str == gpt_str_use):
-            correct_num += 1
+            test_str = str(question['test'][0]['output'])
+            p_accuracy.append(calculate_accuracy(test_str, hf_model_str_use))
 
-        else:
-            incorrect_num += 1
-            new_test_str = ''
-            for i, string in enumerate(test_str):
-                if string == ',':
-                    if test_str[i - 1] == ']':
-                        new_test_str += '\n'
+            if calculate_accuracy_valid(test_str, hf_model_str_use) != 'Invalid':
+                p_accuracy_valid.append(calculate_accuracy_valid(test_str, hf_model_str_use))
+
+            if (test_str == hf_model_str_use):
+                correct_num += 1
+            else:
+                new_test_str = ''
+                for i, string in enumerate(test_str):
+                    if string == ',':
+                        if test_str[i - 1] == ']':
+                            new_test_str += '\n'
+                        else:
+                            new_test_str += string
                     else:
                         new_test_str += string
-                else:
-                    new_test_str += string
 
-            new_gpt_str = ''
-            for i, string in enumerate(gpt_str_use):
-                if string == ',':
-                    if gpt_str_use[i - 1] == ']':
-                        new_gpt_str += '\n'
+                new_hf_model_str = ''
+                for i, string in enumerate(hf_model_str_use):
+                    if string == ',':
+                        if hf_model_str_use[i - 1] == ']':
+                            new_hf_model_str += '\n'
+                        else:
+                            new_hf_model_str += string
                     else:
-                        new_gpt_str += string
-                else:
-                    new_gpt_str += string
+                        new_hf_model_str += string
 
-            new_input = ''
-            for i, string in enumerate(str(question['test'][0]['input'])):
-                if string == ',':
-                    if str(question['test'][0]['input'])[i - 1] == ']':
-                        new_input += '\n'
+                new_input = ''
+                for i, string in enumerate(str(question['test'][0]['input'])):
+                    if string == ',':
+                        if str(question['test'][0]['input'])[i - 1] == ']':
+                            new_input += '\n'
+                        else:
+                            new_input += string
                     else:
                         new_input += string
-                else:
-                    new_input += string
+                incorrect_num += 1
+                error_list.append(index)
 
-    print(task)
-    print('\n')
-    ##ACC
-    print(correct_num / all_num)
-    print('\n')
-    ##Not M%
-    print((all_num-len(p_accuracy_valid))/all_num)
+        print(task)
+        print('\n')
+        ## Acc
+        print(correct_num / all_num)
+        print('\n')
+        ## Not M%
+        print((all_num - len(p_accuracy_valid)) / all_num)
 
 ## Evaluate natural language input prompt's result
 #ARAOC
@@ -341,27 +365,27 @@ for task in task_type:
         question_train = json.load(file)
 
     with open(
-            'results/gpt_' + task + '_language.json',
+            'results/hf_model_' + task + '_language.json',
             'r') as f:
-        gpt = json.load(f)
+        hf_model = json.load(f)
 
     all_num = 0
     correct_num = 0
     incorrect_num = 0
     p_accuracy = []
     p_accuracy_valid = []
-    for index in gpt.keys():
+    for index in hf_model.keys():
         all_num += 1
         questions = question_train[int(index)]
 
-        gpt_str = gpt[index]
-        if gpt_str[-1] != ']':
-            gpt_str += ']'
-        if gpt_str[-2] == '.':
-            gpt_str = gpt_str[:-2] + ']'
+        hf_model_str = hf_model[index]
+        if hf_model_str[-1] != ']':
+            hf_model_str += ']'
+        if hf_model_str[-2] == '.':
+            hf_model_str = hf_model_str[:-2] + ']'
 
         try:
-            gpt_str_use = str(convert_language_to_matrix(gpt_str))
+            hf_model_str_use = str(convert_language_to_matrix(hf_model_str))
         except IndexError:
             incorrect_num += 1
             p_accuracy.append(0)
@@ -380,10 +404,10 @@ for task in task_type:
             continue
 
         test_str = str(questions['test'][0]['output'])
-        p_accuracy.append(calculate_accuracy(test_str, gpt_str_use))
-        if calculate_accuracy_valid(test_str, gpt_str_use) != 'Invalid':
-            p_accuracy_valid.append(calculate_accuracy_valid(test_str, gpt_str_use))
-        if (test_str == gpt_str_use):
+        p_accuracy.append(calculate_accuracy(test_str, hf_model_str_use))
+        if calculate_accuracy_valid(test_str, hf_model_str_use) != 'Invalid':
+            p_accuracy_valid.append(calculate_accuracy_valid(test_str, hf_model_str_use))
+        if (test_str == hf_model_str_use):
             correct_num += 1
         else:
             incorrect_num += 1
@@ -394,3 +418,54 @@ for task in task_type:
     print('\n')
     ## Not M%
     print((all_num - len(p_accuracy_valid)) / all_num)
+
+## Evaluate matrix properties results
+with open('results/hf_model_move_matrix.json', 'r') as file:
+    hf_model = json.load(file)
+
+with open(
+        'data/ARAOC/move.json',
+        'r') as f:
+    question_train = json.load(f)
+
+size_correct = 0
+location_correct = 0
+transpose_correct = 0
+for index in hf_model.keys():
+    value = hf_model[index]
+    question = questions[int(index)]
+
+    matrix = np.array(question['test'][0]['input'])
+
+    size_match = re.search(r'Size:\s*(\(\d+,\s*\d+\))', value)
+    location_match = re.search(r'Location:\s*(\[\([^)]+\)(?:,\s*\([^)]+\))*\])', value)
+    transpose_match = re.search(r'Transpose:\s*(\[\[.*\]\])', value, re.DOTALL)
+
+    size = size_match.group(1) if size_match else f"Not found in index {index}"
+    location = location_match.group(1).replace("\n", "") if location_match else f"Not found in index {index}"
+    transpose = transpose_match.group(1).replace("\n", "").replace(" ",
+                                                                   "") if transpose_match else f"Not found in index {index}"
+
+    size = size.replace(',', ', ')
+    size = size.replace(',  ', ', ')
+    location = location.replace(',', ', ')
+    location = location.replace(',  ', ', ')
+    transpose = transpose.replace(',', ', ')
+
+    # Get the transpose of the matrix
+    gold_size = str((matrix.shape[0], matrix.shape[1]))
+    gold_location = str(find_nonzero_subgrid_corners(matrix))
+    gold_transpose = str(matrix.T.tolist())
+
+    if size == gold_size:
+        size_correct += 1
+
+    if location == gold_location:
+        location_correct += 1
+
+    if transpose == gold_transpose:
+        transpose_correct += 1
+
+print(size_correct/100)
+print(location_correct/100)
+print(transpose_correct/100)
