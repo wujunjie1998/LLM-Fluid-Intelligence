@@ -35,9 +35,6 @@ setup_seed(2024)
 
 parser = argparse.ArgumentParser(description="Example script to demonstrate command line argument parsing.")
 
-# Add arguments
-parser.add_argument("--language", action='store_true', required=False, help="Use natural language input")
-
 args = parser.parse_args()
 
 
@@ -92,44 +89,6 @@ def io_only_prompt(task):
         input_grid) + "\n\nWhat is the output grid? Please only output your answer without analysis in the following format:\nOutput grid:"
     return prompt
 
-def convert_matrix_to_language(matrix):
-    rows = len(matrix)
-    cols = len(matrix[0]) if rows > 0 else 0
-
-    # Find non-zero elements and their coordinates, adjusted for a bottom-left origin
-    non_zero_elements = []
-    for y in range(rows):
-        for x in range(cols):
-            if matrix[y][x] != 0:
-                # Calculate Cartesian coordinates from matrix indices
-                cartesian_y = (rows - 1) - y
-                non_zero_elements.append(f"({matrix[y][x]}, ({x}, {cartesian_y}))")
-
-    # Create the final description string
-    final_description = (
-        f"The matrix dimensions are {cols} columns by {rows} rows. "
-        f"Coordinates are based on a Cartesian coordinate system with the origin (0,0) at the bottom-left corner. "
-        f"The coordinates of the non-zero elements, listed from top to bottom and left to right, are: [{', '.join(non_zero_elements)}]"
-    )
-
-    return final_description
-
-def io_only_prompt_natural_language(task):
-    input_output_example = "\n\nHere are examples of input grids and its corresponding output grids:\n"
-
-    for example_id in range(len(task['train'])):
-        train_input = convert_matrix_to_language(task['train'][example_id]['input'])
-        train_output = convert_matrix_to_language(task['train'][example_id]['output'])
-
-        input_output_example += "Example input grid:\n" + str(train_input) + "\nExample output grid:\n" + str(
-            train_output) + "\n\n"
-
-    input_grid = convert_matrix_to_language(task['test'][0]['input'])
-
-    prompt = preamble + input_output_example + "\n\nThe input grid is:\n" + str(
-        input_grid) + "\n\nWhat is the output grid? Please answer in the following format without outputting analysis:\nOutput grid:"
-    return prompt
-
 if not os.path.exists('results'):
     os.makedirs('results')
 
@@ -147,10 +106,7 @@ for sub_file in tqdm(sub_files):
         continue
     with open(root + '/' + sub_file, 'r') as file:
         question = json.load(file)
-        if args.language:
-            input_prompt = io_only_prompt_natural_language(question)
-        else:
-            input_prompt = io_only_prompt(question)
+        input_prompt = io_only_prompt(question)
 
         messages = [
             {"role": "user", "content": input_prompt},
@@ -173,9 +129,6 @@ for sub_file in tqdm(sub_files):
         hf_model_str = tokenizer.decode(original_sequence.sequences[0][inputs[0].shape[0]:])
         original_results[sub_file] = hf_model_str
 
-    if args.language:
-        with open('results/hf_model_arc_language.json', 'w') as file:
-            json.dump(original_results, file)
-    else:
-        with open('results/hf_model_arc.json', 'w') as file:
-            json.dump(original_results, file)
+
+    with open('results/hf_model_arc.json', 'w') as file:
+        json.dump(original_results, file)

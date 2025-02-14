@@ -20,10 +20,61 @@ def list_files_sorted_by_size(folder_path):
 
     return sorted_file_names
 
+def contains_non_numeric(matrix):
+    return any(not isinstance(element, int) for element in matrix)
+
+def parse_matrix(matrix_str):
+    # Strip the outer brackets and split by commas, then trim whitespace
+    elements = matrix_str.strip('[]').split(',')
+    parsed_matrix = []
+    for element in elements:
+        try:
+            # Try to convert each element to an integer
+            parsed_matrix.append(int(element.strip()))
+        except ValueError:
+            # If it's not an integer, keep it as a string
+            parsed_matrix.append(element.strip().strip('"').strip("'"))
+    return parsed_matrix
+
 def is_numeric_matrix(matrix):
     """Check if all elements in the matrix are numeric."""
     return all(isinstance(item, (int, float)) for sublist in matrix for item in sublist)
 
+
+def extract_and_reconstruct(input_data):
+    # Extract the output grid string from the input structure
+    output_grid_string = input_data.split('</s>')[0]  # Assuming input_data is a string containing the output grid
+
+    # Call the existing function to reconstruct the list of lists from this string
+    reconstructed_data = reconstruct_from_string(output_grid_string)
+    return reconstructed_data
+
+
+def reconstruct_from_string(input_string):
+    """
+    Reconstructs the list of lists from the formatted string.
+    """
+    word_to_number = {
+        "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
+        "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
+    }
+
+    def process_line(line):
+        # Extract the counts and numbers from the line
+        parts = line.split('"')
+        sublist = []
+        for i in range(1, len(parts), 2):  # Only the parts that represent numbers
+            count_word = parts[i - 1].strip().split()[-1]
+            count = word_to_number.get(count_word, 1)  # Default to 1 if word not found
+            number = int(parts[i].strip())
+            sublist.extend([number] * count)
+        return sublist
+
+    # Split the input string into lines and process each one
+    lines = input_string.strip().split('\n')
+    data = [process_line(line) for line in lines if line.startswith('Row')]
+
+    return data
 
 def convert_language_to_matrix(input_string):
     dimension_pattern = r"The matrix dimensions are (\d+) columns by (\d+) rows"
@@ -117,7 +168,7 @@ def calculate_accuracy_valid(ground_truth_str, prediction_str):
 ## Evaluate general input prompt's result
 
 # ARC
-with open('results/gpt_arc.json', 'r') as file:
+with open('results/hf_model_arc.json', 'r') as file:
     gpt = json.load(file)
 
 questions = {}
