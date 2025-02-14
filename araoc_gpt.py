@@ -1,7 +1,6 @@
 from openai import OpenAI
 import openai
 import torch
-import pdb
 import numpy as np
 import json
 import random
@@ -135,7 +134,7 @@ for index, question in tqdm(enumerate(question_train[:100])):
             input_prompt = matrix_prompt(question)
         else:
             input_prompt = io_only_prompt(question)
-    pdb.set_trace()
+
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": input_prompt}]

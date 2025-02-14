@@ -72,5 +72,10 @@ You can also use natural language input to run experiments in Table 11.
 python arc_gpt.py --task_type xxx --language
 ```
 
+#### Open-sourced models.
+We run open-source LLMs using Hugging Face's Transformers. For all experiments, simply substitute `arc/araoc_gpt.py` with `arc/araoc_hf_model` in the previous commands.
+
+
 ### Evaluation
+After generating results with the previous files, you can use the evaluation scripts in `gpt/hf_model_evaluation.py` to assess the model outputs.
 
