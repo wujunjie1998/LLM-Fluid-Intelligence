@@ -79,3 +79,16 @@ We run open-source LLMs using Hugging Face's Transformers. For all experiments, 
 ### Evaluation
 After generating results with the previous files, you can use the evaluation scripts in `gpt/hf_model_evaluation.py` to evaluate the model outputs.
 
+## Citation
+
+```bibtex
+@article{wu2025understanding,
+  title={Understanding LLMs' Fluid Intelligence Deficiency: An Analysis of the ARC Task},
+  author={Wu, Junjie and Yu, Mo and Liu, Lemao and Yeung, Dit-Yan and Zhou, Jie},
+  journal={arXiv preprint arXiv:2502.07190},
+  year={2025}
+}
+```
+
+
+
